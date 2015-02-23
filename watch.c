@@ -254,7 +254,6 @@ main(int argc, char *argv[])
 		int tsl = strlen(ts);
 		char *header;
 		int x, y;
-		int oldeolseen = 1;
         int c;
 
         /* If the terminal size changes, we need to pass that on to ncurses. */
@@ -300,51 +299,70 @@ main(int argc, char *argv[])
     			free(header);
     		}
 
-            int command_output_offset = 0;
-    		for (y = show_title; y < height; y++) {
-	    		int eolseen = 0, tabpending = 0;
-		    	for (x = 0; x < width; x++) {
-				    c = ' ';
-    				int attr = 0;
+            //fprintf(stderr, "* at draw, origin_x=%i , origin_y=%i\n", origin_x, origin_y);
+            x = origin_x;
+            y = origin_y + show_title;
+            int offset = 0;
+            while (true) {
+                int done = 0;
+                while ((offset < command_output_length) && !done) {
+                    //fprintf(stderr, "offset=%i < command_output_length=%i\n", offset, command_output_length);
+                    // Print to the terminal.
+                    //fprintf(stderr, "checking %i\n", offset);
+                    if (isprint(command_output[offset])) {
+                        move(y - origin_y, x - origin_x);
+                        addch(command_output[offset]);
+                    }
 
-    				if (!eolseen) {
-	    				/* if there is a tab pending, just spit spaces until the
-		    			   next stop instead of reading characters */
-			    		if (!tabpending)
-				    		do
-					    		c = getc(command_pipe);
-						    while (c != EOF && !isprint(c)
-    						       && c != '\n'
-	    					       && c != '\t');
-		    			if (c == '\n')
-			    			if (!oldeolseen && x == 0) {
-				    			x = -1;
-					    		continue;
-    						} else
-	    						eolseen = 1;
-		    			else if (c == '\t')
-			    			tabpending = 1;
-				    	if (c == EOF || c == '\n' || c == '\t')
-					    	c = ' ';
-    					if (tabpending && (((x + 1) % 8) == 0))
-	    					tabpending = 0;
-		    		}
-			    	move(y, x);
-				    if (option_differences) {
-    					chtype oldch = inch();
-	    				char oldc = oldch & A_CHARTEXT;
-		    			attr = ((char)c != oldc
-				    		||
-					    	(option_differences_cumulative
-    						 && (oldch & A_ATTRIBUTES)));
-	    			}
-		    		if (attr)
-			    		standout();
-				    addch(c);
-    				if (attr)
-	    				standend();
-		    	}
-			    oldeolseen = eolseen;
+                    // Advance 'x', 'y', 'offset'.
+                    switch (command_output[offset]) {
+                    case '\t':
+                        x += 8;
+                        offset += 8;
+                        break;
+                    case '\n':
+                        x = origin_x;
+                        y++;
+                        offset++;
+                        break;
+                    default:
+                        x++;
+                        offset++;
+                        break;
+                    }
+
+                    // 'x' wraps over.
+                    int extra = x - (origin_x + width);
+                    if (extra > 0) {
+                        x = origin_x + (extra % width);
+                        y += 1 + (extra / width);
+                    }
+
+                    // Are we done drawing our window of the output?
+                    done = y > origin_y + height;
+                }
+
+                if (done) break;
+
+                /* If we got here, it means that we need to read more process
+                   output. */
+                if (feof(command_pipe)) {
+                    /* Unless there's nothing else to read, in which case we're
+                       done. */
+                    //fputs("no more stdout\n", stderr);
+                    break;
+                } else {
+                    //fprintf(stderr, "resizing command_output from %i\n", command_output_length);
+                    char buffer[128];
+                    size_t bytes_read = fread(buffer, sizeof(char), sizeof(buffer) / sizeof(char), command_pipe);
+                    command_output = realloc(command_output, sizeof(command_output[0]) * (command_output_length + bytes_read));
+                    int i;
+                    for (i = 0; i < bytes_read; i++) {
+                        command_output[command_output_length + i] = buffer[i];
+                    }
+                    command_output_length += bytes_read;
+                    //fprintf(stderr, " .. to %i\n", command_output_length);
+                }
             }
 
             refresh();
@@ -355,8 +373,10 @@ main(int argc, char *argv[])
 		if ((c = getch()) != ERR) {
             switch (c) {
             case KEY_UP:
-                origin_y--;
-                view_changed = 1;
+                if (origin_y > 0) {
+                    origin_y--;
+                    view_changed = 1;
+                }
                 break;
             case KEY_RIGHT:
                 origin_x++;
@@ -367,8 +387,10 @@ main(int argc, char *argv[])
                 view_changed = 1;
                 break;
             case KEY_LEFT:
-                origin_x--;
-                view_changed = 1;
+                if (origin_x > 0) {
+                    origin_x--;
+                    view_changed = 1;
+                }
                 break;
             }
         }
