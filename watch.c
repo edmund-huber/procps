@@ -308,7 +308,7 @@ main(int argc, char *argv[])
                 int done = 0;
                 while ((offset < command_output_length) && !done) {
                     // Print to the terminal.
-                    if (isprint(command_output[offset]) && (y - origin_y >= show_title) && (x - origin_x >= 0)) {
+                    if (isprint(command_output[offset]) && (y - origin_y >= show_title) && (y - origin_y < height) && (x - origin_x < width) && (x - origin_x >= 0)) {
                         move(y - origin_y, x - origin_x);
                         addch(command_output[offset]);
                     }
@@ -317,18 +317,16 @@ main(int argc, char *argv[])
                     switch (command_output[offset]) {
                     case '\t':
                         x += 8;
-                        offset += 8;
                         break;
                     case '\n':
                         x = 0;
                         y++;
-                        offset++;
                         break;
                     default:
                         x++;
-                        offset++;
                         break;
                     }
+                    offset++;
 
                     // Are we done drawing our window of the output?
                     done = y > origin_y + height;
