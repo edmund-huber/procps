@@ -133,7 +133,7 @@ get_terminal_size(void)
 				snprintf(env_col_buf, sizeof env_col_buf, "COLUMNS=%d", width);
 				putenv(env_col_buf);
 			}
-		}
+        }
 	}
 }
 
@@ -238,6 +238,7 @@ main(int argc, char *argv[])
 	noecho();
 	cbreak();
 	halfdelay(1);
+	curs_set(0);
 
     struct timeval tv;
     if (gettimeofday(&tv, NULL) == -1) {
@@ -260,7 +261,6 @@ main(int argc, char *argv[])
         if (screen_size_changed) {
 			get_terminal_size();
    		    resizeterm(height, width);
-    		clear();
 		    screen_size_changed = 0;
             view_changed = 1;
     	}
@@ -269,6 +269,8 @@ main(int argc, char *argv[])
            again), or if the user changed the view (by paging around), then we
            need to redraw. */
 		if (rerun_command || view_changed) {
+    		clear();
+
             if (rerun_command) {
                 // Reopen the process pipe.
                 if (command_pipe != NULL) {
@@ -299,17 +301,14 @@ main(int argc, char *argv[])
     			free(header);
     		}
 
-            //fprintf(stderr, "* at draw, origin_x=%i , origin_y=%i\n", origin_x, origin_y);
-            x = origin_x;
-            y = origin_y + show_title;
+            x = 0;
+            y = show_title;
             int offset = 0;
             while (true) {
                 int done = 0;
                 while ((offset < command_output_length) && !done) {
-                    //fprintf(stderr, "offset=%i < command_output_length=%i\n", offset, command_output_length);
                     // Print to the terminal.
-                    //fprintf(stderr, "checking %i\n", offset);
-                    if (isprint(command_output[offset])) {
+                    if (isprint(command_output[offset]) && (y - origin_y >= show_title) && (x - origin_x >= 0)) {
                         move(y - origin_y, x - origin_x);
                         addch(command_output[offset]);
                     }
@@ -321,7 +320,7 @@ main(int argc, char *argv[])
                         offset += 8;
                         break;
                     case '\n':
-                        x = origin_x;
+                        x = 0;
                         y++;
                         offset++;
                         break;
@@ -329,13 +328,6 @@ main(int argc, char *argv[])
                         x++;
                         offset++;
                         break;
-                    }
-
-                    // 'x' wraps over.
-                    int extra = x - (origin_x + width);
-                    if (extra > 0) {
-                        x = origin_x + (extra % width);
-                        y += 1 + (extra / width);
                     }
 
                     // Are we done drawing our window of the output?
@@ -349,10 +341,8 @@ main(int argc, char *argv[])
                 if (feof(command_pipe)) {
                     /* Unless there's nothing else to read, in which case we're
                        done. */
-                    //fputs("no more stdout\n", stderr);
                     break;
                 } else {
-                    //fprintf(stderr, "resizing command_output from %i\n", command_output_length);
                     char buffer[128];
                     size_t bytes_read = fread(buffer, sizeof(char), sizeof(buffer) / sizeof(char), command_pipe);
                     command_output = realloc(command_output, sizeof(command_output[0]) * (command_output_length + bytes_read));
@@ -361,7 +351,6 @@ main(int argc, char *argv[])
                         command_output[command_output_length + i] = buffer[i];
                     }
                     command_output_length += bytes_read;
-                    //fprintf(stderr, " .. to %i\n", command_output_length);
                 }
             }
 
