@@ -360,24 +360,31 @@ main(int argc, char *argv[])
 		if ((c = getch()) != ERR) {
             switch (c) {
             case KEY_UP:
-                if (origin_y > 0) {
-                    origin_y--;
-                    view_changed = 1;
-                }
+                origin_y -= 8;
+                origin_y = origin_y >= 0 ? origin_y : 0;
+                view_changed = 1;
                 break;
             case KEY_RIGHT:
-                origin_x++;
+                origin_x += 8;
                 view_changed = 1;
                 break;
             case KEY_DOWN:
-                origin_y++;
+                origin_y += 8;
                 view_changed = 1;
                 break;
             case KEY_LEFT:
-                if (origin_x > 0) {
-                    origin_x--;
-                    view_changed = 1;
-                }
+                origin_x -= 8;
+                origin_x = origin_x >= 0 ? origin_x : 0;
+                view_changed = 1;
+                break;
+            case KEY_NPAGE:
+                origin_y += height - show_title;
+                view_changed = 1;
+                break;
+            case KEY_PPAGE:
+                origin_y -= height - show_title;
+                origin_y = origin_y >= 0 ? origin_y : 0;
+                view_changed = 1;
                 break;
             }
         }
