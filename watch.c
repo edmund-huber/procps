@@ -38,11 +38,12 @@ static struct option longopts[] = {
 	{"interval", required_argument, 0, 'n'},
 	{"no-title", no_argument, 0, 't'},
 	{"version", no_argument, 0, 'v'},
+	{"paging", no_argument, 0, 'p'},
 	{0, 0, 0, 0}
 };
 
 static char usage[] =
-    "Usage: %s [-dhntv] [--differences[=cumulative]] [--help] [--interval=<n>] [--no-title] [--version] <command>\n";
+    "Usage: %s [-dhntpv] [--differences[=cumulative]] [--help] [--interval=<n>] [--no-title] [--paging] [--version] <command>\n";
 
 static char *progname;
 
@@ -143,7 +144,8 @@ main(int argc, char *argv[])
 	int optc;
 	int option_differences = 0,
 	    option_differences_cumulative = 0,
-	    option_help = 0, option_version = 0;
+	    option_help = 0, option_version = 0,
+        option_paging = 0;
 	double interval = 2;
 	char *command;
 	int command_length = 0;	/* not including final \0 */
@@ -156,7 +158,7 @@ main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 	progname = argv[0];
 
-	while ((optc = getopt_long(argc, argv, "+d::hn:vt", longopts, (int *) 0))
+	while ((optc = getopt_long(argc, argv, "+d::hn:pvt", longopts, (int *) 0))
 	       != EOF) {
 		switch (optc) {
 		case 'd':
@@ -185,6 +187,9 @@ main(int argc, char *argv[])
 		case 'v':
 			option_version = 1;
 			break;
+        case 'p':
+            option_paging = 1;
+            break;
 		default:
 			do_usage();
 			break;
@@ -382,7 +387,7 @@ main(int argc, char *argv[])
 
         // Get an arrow character: page around.
         view_changed = 0;
-		if ((c = getch()) != ERR) {
+		if (option_paging && ((c = getch()) != ERR)) {
             switch (c) {
             case KEY_UP:
                 origin_y -= 8;
