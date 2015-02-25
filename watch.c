@@ -93,8 +93,8 @@ static int incoming_rows;
 static void
 get_terminal_size(void)
 {
-    old_height = height;
-    old_width = width;
+	old_height = height;
+	old_width = width;
 	struct winsize w;
 	if(!incoming_cols){  // have we checked COLUMNS?
 		const char *s = getenv("COLUMNS");
@@ -134,7 +134,7 @@ get_terminal_size(void)
 				snprintf(env_col_buf, sizeof env_col_buf, "COLUMNS=%d", width);
 				putenv(env_col_buf);
 			}
-        }
+		}
 	}
 }
 
@@ -145,15 +145,15 @@ main(int argc, char *argv[])
 	int option_differences = 0,
 	    option_differences_cumulative = 0,
 	    option_help = 0, option_version = 0,
-        option_paging = 0;
+	    option_paging = 0;
 	double interval = 2;
 	char *command;
 	int command_length = 0;	/* not including final \0 */
-    FILE *command_pipe = NULL;
-    chtype *command_output = NULL;
-    int command_output_length = 0;
-    chtype *previous_command_output = NULL;
-    int previous_command_output_length = 0;
+	FILE *command_pipe = NULL;
+	chtype *command_output = NULL;
+	int command_output_length = 0;
+	chtype *previous_command_output = NULL;
+	int previous_command_output_length = 0;
 
 	setlocale(LC_ALL, "");
 	progname = argv[0];
@@ -187,9 +187,9 @@ main(int argc, char *argv[])
 		case 'v':
 			option_version = 1;
 			break;
-        case 'p':
-            option_paging = 1;
-            break;
+		case 'p':
+			option_paging = 1;
+			break;
 		default:
 			do_usage();
 			break;
@@ -247,16 +247,16 @@ main(int argc, char *argv[])
 	halfdelay(1);
 	curs_set(0);
 
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) == -1) {
-        puts("gettimeofday() returned -1");
-        exit(1);
-    }
-    unsigned long time_then = (tv.tv_sec * 1000000ul) + tv.tv_usec;
-    int rerun_command = 1;
-    int max_y = -1;
-    int origin_x = 0, origin_y = 0, view_changed = 0;
-    int go_to_end = 0;
+	struct timeval tv;
+	if (gettimeofday(&tv, NULL) == -1) {
+		puts("gettimeofday() returned -1");
+		exit(1);
+	}
+	unsigned long time_then = (tv.tv_sec * 1000000ul) + tv.tv_usec;
+	int rerun_command = 1;
+	int max_y = -1;
+	int origin_x = 0, origin_y = 0, view_changed = 0;
+	int go_to_end = 0;
 
 	for (;;) {
 		time_t t = time(NULL);
@@ -264,201 +264,201 @@ main(int argc, char *argv[])
 		int tsl = strlen(ts);
 		char *header;
 		int x, y;
-        int c;
+		int c;
 
-        /* If the terminal size changes, we need to pass that on to ncurses. */
-        if (screen_size_changed) {
+		/* If the terminal size changes, we need to pass that on to ncurses. */
+		if (screen_size_changed) {
 			get_terminal_size();
-   		    resizeterm(height, width);
-		    screen_size_changed = 0;
-            view_changed = 1;
-    	}
+			resizeterm(height, width);
+			screen_size_changed = 0;
+			view_changed = 1;
+		}
 
-        // Clamp viewport to visible size.
-        if (max_y != -1) {
-            origin_y = origin_y > max_y - height ? max_y - height : origin_y;
-        }
+		// Clamp viewport to visible size.
+		if (max_y != -1) {
+			origin_y = origin_y > max_y - height ? max_y - height : origin_y;
+		}
 
-        /* If either the timeout passed (and so we need to run the command
-           again), or if the user changed the view (by paging around), then we
-           need to redraw. */
+		/* If either the timeout passed (and so we need to run the command
+		   again), or if the user changed the view (by paging around), then we
+		   need to redraw. */
 		if (rerun_command || view_changed) {
-    		clear();
+			clear();
 
-            if (rerun_command) {
-                // Reopen the process pipe.
-                if (command_pipe != NULL) {
-                    pclose(command_pipe);
-                }
-                if (!(command_pipe = popen(command, "r"))) {
-        			perror("popen");
-	        		do_exit(2);
-                }
-                max_y = -1;
+			if (rerun_command) {
+				// Reopen the process pipe.
+				if (command_pipe != NULL) {
+					pclose(command_pipe);
+				}
+				if (!(command_pipe = popen(command, "r"))) {
+					perror("popen");
+					do_exit(2);
+				}
+				max_y = -1;
 
-                // Keep previous command output so that we can do differences.
-                if (previous_command_output != NULL) {
-                    free(previous_command_output);
-                }
-                previous_command_output = (chtype *)malloc(sizeof(chtype) * command_output_length);
-                memcpy(previous_command_output, command_output, sizeof(chtype) * command_output_length);
-                previous_command_output_length = command_output_length;
+				// Keep previous command output so that we can do differences.
+				if (previous_command_output != NULL) {
+					free(previous_command_output);
+				}
+				previous_command_output = (chtype *)malloc(sizeof(chtype) * command_output_length);
+				memcpy(previous_command_output, command_output, sizeof(chtype) * command_output_length);
+				previous_command_output_length = command_output_length;
 
-                // Reinitialize the command output buffer.
-                command_output_length = 0;
-            }
+				// Reinitialize the command output buffer.
+				command_output_length = 0;
+			}
 
-    		if (show_title) {
-    			// left justify interval and command,
-    			// right justify time, clipping all to fit window width
-    			asprintf(&header, "Every %.1fs: %.*s",
-    				interval, min(width - 1, command_length), command);
-    			mvaddstr(0, 0, header);
-    			if (strlen(header) > (size_t) (width - tsl - 1))
-    				mvaddstr(0, width - tsl - 4, "...  ");
-    			mvaddstr(0, width - tsl + 1, ts);
-    			free(header);
-    		}
+			if (show_title) {
+				// left justify interval and command,
+				// right justify time, clipping all to fit window width
+				asprintf(&header, "Every %.1fs: %.*s",
+					interval, min(width - 1, command_length), command);
+				mvaddstr(0, 0, header);
+				if (strlen(header) > (size_t) (width - tsl - 1))
+					mvaddstr(0, width - tsl - 4, "...  ");
+				mvaddstr(0, width - tsl + 1, ts);
+				free(header);
+			}
 
-            restart_draw:
-            x = 0;
-            y = show_title;
-            int offset = 0;
-            while (true) {
-                int done = 0;
-                while ((offset < command_output_length) && !done) {
-                    // Print to the terminal.
-                    if (isprint(command_output[offset] & A_CHARTEXT)
-                        && (y - origin_y >= show_title) && (y - origin_y < height)
-                        && (x - origin_x < width) && (x - origin_x >= 0)
-                        && !go_to_end) {
-                        move(y - origin_y, x - origin_x);
-                        addch(command_output[offset]);
-                    }
+			restart_draw:
+			x = 0;
+			y = show_title;
+			int offset = 0;
+			while (true) {
+				int done = 0;
+				while ((offset < command_output_length) && !done) {
+					// Print to the terminal.
+					if (isprint(command_output[offset] & A_CHARTEXT)
+						&& (y - origin_y >= show_title) && (y - origin_y < height)
+						&& (x - origin_x < width) && (x - origin_x >= 0)
+						&& !go_to_end) {
+						move(y - origin_y, x - origin_x);
+						addch(command_output[offset]);
+					}
 
-                    // Advance 'x', 'y', 'offset'.
-                    switch (command_output[offset]) {
-                    case '\t':
-                        x += 8;
-                        break;
-                    case '\n':
-                        x = 0;
-                        y++;
-                        break;
-                    default:
-                        x++;
-                        break;
-                    }
-                    offset++;
+					// Advance 'x', 'y', 'offset'.
+					switch (command_output[offset]) {
+					case '\t':
+						x += 8;
+						break;
+					case '\n':
+						x = 0;
+						y++;
+						break;
+					default:
+						x++;
+						break;
+					}
+					offset++;
 
-                    // Are we done drawing our window of the output?
-                    done = !go_to_end && (y > origin_y + height);
-                }
+					// Are we done drawing our window of the output?
+					done = !go_to_end && (y > origin_y + height);
+				}
 
-                if (done) break;
+				if (done) break;
 
-                /* If we got here, it means that we need to read more process
-                   output. */
-                if (feof(command_pipe)) {
-                    max_y = y;
-                    /* Unless there's nothing else to read, in which case we're
-                       done. */
-                    if (go_to_end) {
-                        origin_y = y - height;
-                        go_to_end = 0;
-                        goto restart_draw;
-                    }
-                    break;
-                } else {
-                    char buffer[128];
-                    size_t bytes_read = fread(buffer, sizeof(char), sizeof(buffer) / sizeof(char), command_pipe);
-                    command_output = (chtype *)realloc(command_output, sizeof(chtype) * (command_output_length + bytes_read));
-                    if (command_output == NULL) {
-                        puts("couldn't realloc");
-                        exit(1);
-                    }
-                    int i;
-                    for (i = 0; i < bytes_read; i++) {
-                        command_output[command_output_length + i] = buffer[i];
-                    }
-                    command_output_length += bytes_read;
+				/* If we got here, it means that we need to read more process
+				   output. */
+				if (feof(command_pipe)) {
+					max_y = y;
+					/* Unless there's nothing else to read, in which case we're
+					   done. */
+					if (go_to_end) {
+						origin_y = y - height;
+						go_to_end = 0;
+						goto restart_draw;
+					}
+					break;
+				} else {
+					char buffer[128];
+					size_t bytes_read = fread(buffer, sizeof(char), sizeof(buffer) / sizeof(char), command_pipe);
+					command_output = (chtype *)realloc(command_output, sizeof(chtype) * (command_output_length + bytes_read));
+					if (command_output == NULL) {
+						puts("couldn't realloc");
+						exit(1);
+					}
+					int i;
+					for (i = 0; i < bytes_read; i++) {
+						command_output[command_output_length + i] = buffer[i];
+					}
+					command_output_length += bytes_read;
 
-                    // Compare the new bytes against previous invocation's output bytes.
-                    if (option_differences && (previous_command_output != NULL)) {
-                        for (i = command_output_length - bytes_read; (i < command_output_length) && (i < previous_command_output_length); i++) {
-                            // Highlight a difference!
-                            if ((command_output[i] & A_CHARTEXT) != (previous_command_output[i] & A_CHARTEXT)) {
-                                command_output[i] |= A_STANDOUT;
-                            }
+					// Compare the new bytes against previous invocation's output bytes.
+					if (option_differences && (previous_command_output != NULL)) {
+						for (i = command_output_length - bytes_read; (i < command_output_length) && (i < previous_command_output_length); i++) {
+							// Highlight a difference!
+							if ((command_output[i] & A_CHARTEXT) != (previous_command_output[i] & A_CHARTEXT)) {
+								command_output[i] |= A_STANDOUT;
+							}
 
-                            // If --differences=cumulative, also bring over attributes from old output.
-                            if (option_differences_cumulative) {
-                                command_output[i] |= previous_command_output[i] & A_ATTRIBUTES;
-                            }
-                        }
-                    }
-                }
-            }
+							// If --differences=cumulative, also bring over attributes from old output.
+							if (option_differences_cumulative) {
+								command_output[i] |= previous_command_output[i] & A_ATTRIBUTES;
+							}
+						}
+					}
+				}
+			}
 
-            refresh();
-        }
+			refresh();
+		}
 
-        // Get input for paging.
-        view_changed = 0;
+		// Get input for paging.
+		view_changed = 0;
 		if (option_paging && ((c = getch()) != ERR)) {
-            switch (c) {
-            case KEY_UP:
-                origin_y -= 8;
-                origin_y = origin_y >= 0 ? origin_y : 0;
-                view_changed = 1;
-                break;
-            case KEY_RIGHT:
-                origin_x += 8;
-                view_changed = 1;
-                break;
-            case KEY_DOWN:
-                origin_y += 8;
-                view_changed = 1;
-                break;
-            case KEY_LEFT:
-                origin_x -= 8;
-                origin_x = origin_x >= 0 ? origin_x : 0;
-                view_changed = 1;
-                break;
-            case KEY_NPAGE:
-                origin_y += height - show_title;
-                view_changed = 1;
-                break;
-            case KEY_PPAGE:
-                origin_y -= height - show_title;
-                origin_y = origin_y >= 0 ? origin_y : 0;
-                view_changed = 1;
-                break;
-            case 'g':
-                origin_x = 0;
-                origin_y = 0;
-                view_changed = 1;
-                break;
-            case 'G':
-                origin_x = 0;
-                go_to_end = 1;
-                view_changed = 1;
-                break;
-            }
-        }
+			switch (c) {
+			case KEY_UP:
+				origin_y -= 8;
+				origin_y = origin_y >= 0 ? origin_y : 0;
+				view_changed = 1;
+				break;
+			case KEY_RIGHT:
+				origin_x += 8;
+				view_changed = 1;
+				break;
+			case KEY_DOWN:
+				origin_y += 8;
+				view_changed = 1;
+				break;
+			case KEY_LEFT:
+				origin_x -= 8;
+				origin_x = origin_x >= 0 ? origin_x : 0;
+				view_changed = 1;
+				break;
+			case KEY_NPAGE:
+				origin_y += height - show_title;
+				view_changed = 1;
+				break;
+			case KEY_PPAGE:
+				origin_y -= height - show_title;
+				origin_y = origin_y >= 0 ? origin_y : 0;
+				view_changed = 1;
+				break;
+			case 'g':
+				origin_x = 0;
+				origin_y = 0;
+				view_changed = 1;
+				break;
+			case 'G':
+				origin_x = 0;
+				go_to_end = 1;
+				view_changed = 1;
+				break;
+			}
+		}
 
-        // Check if interval passed: do we need to run the command again?
-        if (gettimeofday(&tv, NULL) == -1) {
-            puts("gettimeofday() returned -1");
-            exit(1);
-        }
-        unsigned long time_now = (tv.tv_sec * 1000000ul) + tv.tv_usec;
-        if (time_now - time_then >= interval * 1000000) {
-            time_then = time_now;
-            rerun_command = 1;
-        } else {
-            rerun_command = 0;
-        }
+		// Check if interval passed: do we need to run the command again?
+		if (gettimeofday(&tv, NULL) == -1) {
+			puts("gettimeofday() returned -1");
+			exit(1);
+		}
+		unsigned long time_now = (tv.tv_sec * 1000000ul) + tv.tv_usec;
+		if (time_now - time_then >= interval * 1000000) {
+			time_then = time_now;
+			rerun_command = 1;
+		} else {
+			rerun_command = 0;
+		}
 	}
 
 	endwin();
