@@ -254,7 +254,9 @@ main(int argc, char *argv[])
     }
     unsigned long time_then = (tv.tv_sec * 1000000ul) + tv.tv_usec;
     int rerun_command = 1;
+    int max_y = -1;
     int origin_x = 0, origin_y = 0, view_changed = 0;
+    int go_to_end = 0;
 
 	for (;;) {
 		time_t t = time(NULL);
@@ -272,6 +274,11 @@ main(int argc, char *argv[])
             view_changed = 1;
     	}
 
+        // Clamp viewport to visible size.
+        if (max_y != -1) {
+            origin_y = origin_y > max_y - height ? max_y - height : origin_y;
+        }
+
         /* If either the timeout passed (and so we need to run the command
            again), or if the user changed the view (by paging around), then we
            need to redraw. */
@@ -287,6 +294,7 @@ main(int argc, char *argv[])
         			perror("popen");
 	        		do_exit(2);
                 }
+                max_y = -1;
 
                 // Keep previous command output so that we can do differences.
                 if (previous_command_output != NULL) {
@@ -312,6 +320,7 @@ main(int argc, char *argv[])
     			free(header);
     		}
 
+            restart_draw:
             x = 0;
             y = show_title;
             int offset = 0;
@@ -319,7 +328,10 @@ main(int argc, char *argv[])
                 int done = 0;
                 while ((offset < command_output_length) && !done) {
                     // Print to the terminal.
-                    if (isprint(command_output[offset] & A_CHARTEXT) && (y - origin_y >= show_title) && (y - origin_y < height) && (x - origin_x < width) && (x - origin_x >= 0)) {
+                    if (isprint(command_output[offset] & A_CHARTEXT)
+                        && (y - origin_y >= show_title) && (y - origin_y < height)
+                        && (x - origin_x < width) && (x - origin_x >= 0)
+                        && !go_to_end) {
                         move(y - origin_y, x - origin_x);
                         addch(command_output[offset]);
                     }
@@ -340,7 +352,7 @@ main(int argc, char *argv[])
                     offset++;
 
                     // Are we done drawing our window of the output?
-                    done = y > origin_y + height;
+                    done = !go_to_end && (y > origin_y + height);
                 }
 
                 if (done) break;
@@ -348,8 +360,14 @@ main(int argc, char *argv[])
                 /* If we got here, it means that we need to read more process
                    output. */
                 if (feof(command_pipe)) {
+                    max_y = y;
                     /* Unless there's nothing else to read, in which case we're
                        done. */
+                    if (go_to_end) {
+                        origin_y = y - height;
+                        go_to_end = 0;
+                        goto restart_draw;
+                    }
                     break;
                 } else {
                     char buffer[128];
@@ -385,7 +403,7 @@ main(int argc, char *argv[])
             refresh();
         }
 
-        // Get an arrow character: page around.
+        // Get input for paging.
         view_changed = 0;
 		if (option_paging && ((c = getch()) != ERR)) {
             switch (c) {
@@ -414,6 +432,16 @@ main(int argc, char *argv[])
             case KEY_PPAGE:
                 origin_y -= height - show_title;
                 origin_y = origin_y >= 0 ? origin_y : 0;
+                view_changed = 1;
+                break;
+            case 'g':
+                origin_x = 0;
+                origin_y = 0;
+                view_changed = 1;
+                break;
+            case 'G':
+                origin_x = 0;
+                go_to_end = 1;
                 view_changed = 1;
                 break;
             }
