@@ -361,11 +361,16 @@ main(int argc, char *argv[])
                     command_output_length += bytes_read;
 
                     // Compare the new bytes against previous invocation's output bytes.
-                    if (previous_command_output != NULL) {
-                        int initial_i = command_output_length - bytes_read;
+                    if (option_differences && (previous_command_output != NULL)) {
                         for (i = command_output_length - bytes_read; (i < command_output_length) && (i < previous_command_output_length); i++) {
+                            // Highlight a difference!
                             if ((command_output[i] & A_CHARTEXT) != (previous_command_output[i] & A_CHARTEXT)) {
                                 command_output[i] |= A_STANDOUT;
+                            }
+
+                            // If --differences=cumulative, also bring over attributes from old output.
+                            if (option_differences_cumulative) {
+                                command_output[i] |= previous_command_output[i] & A_ATTRIBUTES;
                             }
                         }
                     }
