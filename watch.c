@@ -149,7 +149,9 @@ main(int argc, char *argv[])
 	int command_length = 0;	/* not including final \0 */
     FILE *command_pipe = NULL;
     chtype *command_output = NULL;
-    int command_output_length;
+    int command_output_length = 0;
+    chtype *previous_command_output = NULL;
+    int previous_command_output_length = 0;
 
 	setlocale(LC_ALL, "");
 	progname = argv[0];
@@ -281,12 +283,16 @@ main(int argc, char *argv[])
 	        		do_exit(2);
                 }
 
-                // Reinitialize the command output buffer.
-                if (command_output != NULL) {
-                    free(command_output);
+                // Keep previous command output so that we can do differences.
+                if (previous_command_output != NULL) {
+                    free(previous_command_output);
                 }
+                previous_command_output = (chtype *)malloc(sizeof(chtype) * command_output_length);
+                memcpy(previous_command_output, command_output, sizeof(chtype) * command_output_length);
+                previous_command_output_length = command_output_length;
+
+                // Reinitialize the command output buffer.
                 command_output_length = 0;
-                command_output = (chtype *)malloc(0);
             }
 
     		if (show_title) {
@@ -308,7 +314,7 @@ main(int argc, char *argv[])
                 int done = 0;
                 while ((offset < command_output_length) && !done) {
                     // Print to the terminal.
-                    if (isprint(command_output[offset]) && (y - origin_y >= show_title) && (y - origin_y < height) && (x - origin_x < width) && (x - origin_x >= 0)) {
+                    if (isprint(command_output[offset] & A_CHARTEXT) && (y - origin_y >= show_title) && (y - origin_y < height) && (x - origin_x < width) && (x - origin_x >= 0)) {
                         move(y - origin_y, x - origin_x);
                         addch(command_output[offset]);
                     }
@@ -343,12 +349,26 @@ main(int argc, char *argv[])
                 } else {
                     char buffer[128];
                     size_t bytes_read = fread(buffer, sizeof(char), sizeof(buffer) / sizeof(char), command_pipe);
-                    command_output = realloc(command_output, sizeof(command_output[0]) * (command_output_length + bytes_read));
+                    command_output = (chtype *)realloc(command_output, sizeof(chtype) * (command_output_length + bytes_read));
+                    if (command_output == NULL) {
+                        puts("couldn't realloc");
+                        exit(1);
+                    }
                     int i;
                     for (i = 0; i < bytes_read; i++) {
                         command_output[command_output_length + i] = buffer[i];
                     }
                     command_output_length += bytes_read;
+
+                    // Compare the new bytes against previous invocation's output bytes.
+                    if (previous_command_output != NULL) {
+                        int initial_i = command_output_length - bytes_read;
+                        for (i = command_output_length - bytes_read; (i < command_output_length) && (i < previous_command_output_length); i++) {
+                            if ((command_output[i] & A_CHARTEXT) != (previous_command_output[i] & A_CHARTEXT)) {
+                                command_output[i] |= A_STANDOUT;
+                            }
+                        }
+                    }
                 }
             }
 
